@@ -1,0 +1,1 @@
+Tambahkan file Logo-HOKIbank.png di folder public.
