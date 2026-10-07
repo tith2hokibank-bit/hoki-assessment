@@ -7,9 +7,12 @@ import {
   Lock,
   ArrowRight,
   Sparkles,
+  Ban,
 } from "lucide-react";
 
+
 const configMap = {
+
   IQ: {
     Icon: BrainCircuit,
     label: "Cognitive Ability",
@@ -17,6 +20,8 @@ const configMap = {
       "Mengukur kemampuan logika, pola, analisis, dan penalaran.",
     accent: "purple",
   },
+
+
   DISC: {
     Icon: UsersRound,
     label: "Work Style",
@@ -24,6 +29,8 @@ const configMap = {
       "Memahami kecenderungan perilaku dan gaya kerja profesional.",
     accent: "rose",
   },
+
+
   MATH: {
     Icon: Calculator,
     label: "Numerical Ability",
@@ -31,79 +38,389 @@ const configMap = {
       "Mengukur kemampuan numerik dan matematika dasar.",
     accent: "blue",
   },
+
 };
 
-export default function TestCard({ test, onStart }) {
-  const config = configMap[test.code] ?? configMap.IQ;
-  const Icon = config.Icon;
 
-  const completed = test.status === "COMPLETED";
-  const inProgress = test.status === "IN_PROGRESS";
-  const notAssigned = !test.assigned;
+export default function TestCard({
+  test,
+  onStart,
+}) {
+
+  const config =
+    configMap[test?.code] ??
+    configMap.IQ;
+
+
+  const Icon =
+    config.Icon;
+
+
+  /* =========================================================
+     NORMALIZE STATUS
+  ========================================================= */
+
+  const status =
+    String(
+      test?.status ||
+      "NOT_STARTED"
+    )
+      .trim()
+      .toUpperCase();
+
+
+  const completed =
+    status ===
+    "COMPLETED";
+
+
+  const inProgress =
+    status ===
+    "IN_PROGRESS";
+
+
+  const cancelled =
+    status ===
+    "CANCELLED";
+
+
+  const notAssigned =
+    !test?.assigned;
+
+
+  /* =========================================================
+     SAFE START
+  ========================================================= */
+
+  const handleStart =
+    () => {
+
+      /*
+        Jangan pernah mulai test
+        yang sudah dibatalkan.
+      */
+
+      if (
+        cancelled
+      ) {
+
+        return;
+      }
+
+
+      /*
+        Completed tidak boleh
+        dikerjakan ulang.
+      */
+
+      if (
+        completed
+      ) {
+
+        return;
+      }
+
+
+      /*
+        Tidak ditugaskan.
+      */
+
+      if (
+        notAssigned
+      ) {
+
+        return;
+      }
+
+
+      /*
+        Hanya NOT_STARTED dan
+        IN_PROGRESS yang boleh masuk.
+      */
+
+      if (
+        status !==
+          "NOT_STARTED" &&
+        status !==
+          "IN_PROGRESS"
+      ) {
+
+        return;
+      }
+
+
+      if (
+        typeof onStart ===
+        "function"
+      ) {
+
+        onStart();
+
+      }
+
+    };
+
 
   return (
+
     <article
-      className={`premium-test-card ${config.accent} ${
-        completed ? "completed" : ""
-      } ${notAssigned ? "disabled" : ""}`}
+
+      className={`
+        premium-test-card
+        ${config.accent}
+        ${completed ? "completed" : ""}
+        ${cancelled ? "cancelled" : ""}
+        ${
+          notAssigned ||
+          cancelled
+            ? "disabled"
+            : ""
+        }
+      `}
+
     >
-      <div className="card-accent-line" />
+
+      {/* =====================================================
+          ACCENT
+      ====================================================== */}
+
+      <div
+        className="card-accent-line"
+      />
+
+
+      {/* =====================================================
+          HEADER
+      ====================================================== */}
 
       <div className="test-card-top">
-        <div className={`premium-test-icon ${config.accent}`}>
-          <Icon size={27} />
+
+        <div
+          className={`
+            premium-test-icon
+            ${config.accent}
+          `}
+        >
+
+          <Icon
+            size={27}
+          />
+
         </div>
 
-        <div className="test-card-code">{test.code}</div>
+
+        <div className="test-card-code">
+
+          {test?.code}
+
+        </div>
+
       </div>
 
-      <div className="test-card-category">{config.label}</div>
 
-      <h3>{test.name}</h3>
+      {/* =====================================================
+          CATEGORY
+      ====================================================== */}
+
+      <div className="test-card-category">
+
+        {config.label}
+
+      </div>
+
+
+      {/* =====================================================
+          NAME
+      ====================================================== */}
+
+      <h3>
+
+        {test?.name}
+
+      </h3>
+
+
+      {/* =====================================================
+          DESCRIPTION
+      ====================================================== */}
 
       <p className="test-description">
+
         {config.description}
+
       </p>
 
-      <div className="test-card-meta">
-        {test.assigned ? (
-          <>
-            <Clock3 size={16} />
-            <span>{test.duration_minutes} menit</span>
-          </>
-        ) : (
-          <>
-            <Lock size={16} />
-            <span>Tidak ditugaskan</span>
-          </>
-        )}
-      </div>
 
-      <div className="test-card-footer">
-        {completed ? (
-          <div className="completed-state">
-            <CheckCircle2 size={18} />
-            <span>Selesai</span>
-          </div>
-        ) : notAssigned ? (
-          <div className="locked-state">
-            <Lock size={16} />
-            <span>Tidak perlu dikerjakan</span>
-          </div>
-        ) : (
-          <button className="premium-start-button" onClick={onStart}>
+      {/* =====================================================
+          META
+      ====================================================== */}
+
+      <div className="test-card-meta">
+
+        {cancelled ? (
+
+          <>
+
+            <Ban
+              size={16}
+            />
+
             <span>
-              {inProgress ? "Lanjutkan Tes" : "Mulai Tes"}
+              Dibatalkan oleh Human Capital
             </span>
 
-            {inProgress ? (
-              <Sparkles size={17} />
-            ) : (
-              <ArrowRight size={18} />
-            )}
-          </button>
+          </>
+
+        ) : notAssigned ? (
+
+          <>
+
+            <Lock
+              size={16}
+            />
+
+            <span>
+              Tidak ditugaskan
+            </span>
+
+          </>
+
+        ) : (
+
+          <>
+
+            <Clock3
+              size={16}
+            />
+
+            <span>
+
+              {test?.duration_minutes}
+              {" "}
+              menit
+
+            </span>
+
+          </>
+
         )}
+
       </div>
+
+
+      {/* =====================================================
+          FOOTER
+      ====================================================== */}
+
+      <div className="test-card-footer">
+
+        {/* =====================
+            COMPLETED
+        ====================== */}
+
+        {completed ? (
+
+          <div className="completed-state">
+
+            <CheckCircle2
+              size={18}
+            />
+
+            <span>
+              Selesai
+            </span>
+
+          </div>
+
+
+        /* =====================
+           CANCELLED
+        ====================== */
+
+        ) : cancelled ? (
+
+          <div className="cancelled-state">
+
+            <Ban
+              size={18}
+            />
+
+            <span>
+              Tes Dibatalkan
+            </span>
+
+          </div>
+
+
+        /* =====================
+           NOT ASSIGNED
+        ====================== */
+
+        ) : notAssigned ? (
+
+          <div className="locked-state">
+
+            <Lock
+              size={16}
+            />
+
+            <span>
+              Tidak perlu dikerjakan
+            </span>
+
+          </div>
+
+
+        /* =====================
+           ACTIVE
+        ====================== */
+
+        ) : (
+
+          <button
+
+            type="button"
+
+            className="premium-start-button"
+
+            onClick={
+              handleStart
+            }
+
+          >
+
+            <span>
+
+              {
+                inProgress
+                  ? "Lanjutkan Tes"
+                  : "Mulai Tes"
+              }
+
+            </span>
+
+
+            {inProgress ? (
+
+              <Sparkles
+                size={17}
+              />
+
+            ) : (
+
+              <ArrowRight
+                size={18}
+              />
+
+            )}
+
+          </button>
+
+        )}
+
+      </div>
+
     </article>
+
   );
 }
