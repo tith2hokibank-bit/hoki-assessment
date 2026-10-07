@@ -10,6 +10,7 @@ import {
   Clock3,
   CheckCircle2,
   AlertTriangle,
+  Ban,
 } from "lucide-react";
 
 export default function TestRunner({
@@ -24,32 +25,203 @@ export default function TestRunner({
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [cancelled, setCancelled] = useState(false);
+  const [cancelMessage, setCancelMessage] = useState(
+    "Tes ini telah dibatalkan oleh Human Capital HOKIbank."
+  );
   const questionStart = useRef(Date.now());
   const autoSubmitStarted = useRef(false);
 
+  function normalizeStatus(value) {
+    return String(value ?? "")
+      .trim()
+      .toUpperCase();
+  }
+
+  function getAssignmentStatus(data) {
+    return normalizeStatus(
+      data?.assignment_status ??
+        data?.assignment?.status ??
+        data?.test_status ??
+        data?.assessment_status ??
+        ""
+    );
+  }
+
+  function isCancelledResponse(data) {
+    const assignmentStatus =
+      getAssignmentStatus(data);
+
+    const sessionStatus =
+      normalizeStatus(
+        data?.status
+      );
+
+    return (
+      assignmentStatus === "CANCELLED" ||
+      sessionStatus === "CANCELLED"
+    );
+  }
+
+  function markCancelled(message) {
+    setCancelled(true);
+    setSession(null);
+    setLoadError("");
+    setCancelMessage(
+      message ||
+        "Tes ini telah dibatalkan oleh Human Capital HOKIbank."
+    );
+  }
+
+  async function checkStillActive() {
+    try {
+      const data =
+        await getSession(
+          token,
+          sessionId
+        );
+
+      if (
+        isCancelledResponse(
+          data
+        )
+      ) {
+        markCancelled(
+          data?.message
+        );
+
+        return {
+          active: false,
+          cancelled: true,
+          data,
+        };
+      }
+
+      if (
+        normalizeStatus(
+          data?.status
+        ) !== "IN_PROGRESS"
+      ) {
+        return {
+          active: false,
+          cancelled: false,
+          data,
+        };
+      }
+
+      return {
+        active: true,
+        cancelled: false,
+        data,
+      };
+    } catch (err) {
+      /*
+        Jangan langsung menganggap cancelled
+        hanya karena koneksi gagal.
+        Error asli tetap ditangani oleh proses pemanggil.
+      */
+      throw err;
+    }
+  }
+
   async function loadSession() {
     try {
-      const data = await getSession(token, sessionId);
+      const data =
+        await getSession(
+          token,
+          sessionId
+        );
 
-      if (data.status !== "IN_PROGRESS") {
+      if (
+        isCancelledResponse(
+          data
+        )
+      ) {
+        markCancelled(
+          data?.message
+        );
+        return;
+      }
+
+      if (
+        normalizeStatus(
+          data?.status
+        ) !== "IN_PROGRESS"
+      ) {
         onCompleted();
         return;
       }
 
+      setCancelled(false);
       setSession(data);
-      setRemaining(data.remaining_seconds ?? 0);
+      setRemaining(
+        data.remaining_seconds ?? 0
+      );
       setLoadError("");
     } catch (err) {
-      setLoadError(err.message);
+      setLoadError(
+        err.message
+      );
     }
   }
 
   useEffect(() => {
+    setCancelled(false);
+    autoSubmitStarted.current = false;
     loadSession();
   }, [sessionId]);
 
+  /*
+    Re-check server selama tes berjalan.
+    Ini membuat kandidat yang sedang mengerjakan
+    segera dihentikan setelah HC membatalkan tes.
+
+    Backend tetap wajib melakukan validasi CANCELLED
+    pada save/submit; polling ini hanya proteksi UX.
+  */
   useEffect(() => {
-    if (!session) return;
+    if (
+      !session ||
+      cancelled
+    ) {
+      return;
+    }
+
+    const interval =
+      setInterval(
+        async () => {
+          try {
+            const result =
+              await checkStillActive();
+
+            if (
+              !result.active &&
+              !result.cancelled
+            ) {
+              onCompleted();
+            }
+          } catch (err) {
+            console.warn(
+              "Session re-check failed:",
+              err
+            );
+          }
+        },
+        10000
+      );
+
+    return () =>
+      clearInterval(
+        interval
+      );
+  }, [
+    sessionId,
+    session,
+    cancelled,
+  ]);
+
+  useEffect(() => {
+    if (!session || cancelled) return;
 
     const timer = setInterval(() => {
       setRemaining((current) => Math.max(0, current - 1));
@@ -59,7 +231,12 @@ export default function TestRunner({
   }, [session]);
 
   useEffect(() => {
-    if (!session || remaining > 0 || autoSubmitStarted.current) return;
+    if (
+      !session ||
+      cancelled ||
+      remaining > 0 ||
+      autoSubmitStarted.current
+    ) return;
 
     autoSubmitStarted.current = true;
     handleSubmit(true);
@@ -83,7 +260,10 @@ export default function TestRunner({
   }, [session]);
 
   async function persistAnswer(selected, least = null) {
-    if (!session) return;
+    if (
+      !session ||
+      cancelled
+    ) return;
 
     const question = session.questions[currentIndex];
 
@@ -120,10 +300,27 @@ export default function TestRunner({
         ),
       }));
     } catch (err) {
-      alert(
-        "Jawaban gagal disimpan: " +
-          err.message
-      );
+      const message =
+        String(
+          err?.message || ""
+        );
+
+      if (
+        message
+          .toUpperCase()
+          .includes(
+            "CANCEL"
+          )
+      ) {
+        markCancelled(
+          "Tes ini telah dibatalkan oleh Human Capital HOKIbank."
+        );
+      } else {
+        alert(
+          "Jawaban gagal disimpan: " +
+            message
+        );
+      }
     } finally {
       setSaving(false);
     }
@@ -157,6 +354,23 @@ export default function TestRunner({
     setSubmitting(true);
 
     try {
+      const current =
+        await checkStillActive();
+
+      if (
+        !current.active
+      ) {
+        setSubmitting(false);
+
+        if (
+          !current.cancelled
+        ) {
+          onCompleted();
+        }
+
+        return;
+      }
+
       await submitTest(
         token,
         sessionId
@@ -164,7 +378,27 @@ export default function TestRunner({
 
       onCompleted();
     } catch (err) {
-      alert(err.message);
+      const message =
+        String(
+          err?.message || ""
+        );
+
+      if (
+        message
+          .toUpperCase()
+          .includes(
+            "CANCEL"
+          )
+      ) {
+        markCancelled(
+          "Tes ini telah dibatalkan oleh Human Capital HOKIbank."
+        );
+      } else {
+        alert(
+          message
+        );
+      }
+
       setSubmitting(false);
     }
   }
@@ -172,6 +406,33 @@ export default function TestRunner({
   function goTo(index) {
     setCurrentIndex(index);
     questionStart.current = Date.now();
+  }
+
+  if (cancelled) {
+    return (
+      <div className="screen-center">
+        <div className="error-box">
+          <div className="error-icon">
+            <Ban size={30} />
+          </div>
+
+          <h2>
+            Tes telah dibatalkan
+          </h2>
+
+          <p>
+            {cancelMessage}
+          </p>
+
+          <button
+            className="premium-start-button full"
+            onClick={onCompleted}
+          >
+            Kembali ke Assessment
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (loadError) {
