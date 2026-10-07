@@ -533,6 +533,12 @@ button {
   box-shadow: none;
 }
 
+.premium-test-card.cancelled {
+  opacity: 0.76;
+  border-color: #e4dce3;
+  background: #fbfafb;
+}
+
 .premium-test-card.completed {
   border-color: #c8e6d6;
 }
@@ -602,10 +608,14 @@ button {
 .test-card-meta {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 9px;
   margin-top: 18px;
   color: #697386;
   font-size: 12px;
+}
+
+.test-card-meta svg {
+  flex: 0 0 auto;
 }
 
 .test-card-footer {
@@ -650,7 +660,8 @@ button {
 }
 
 .completed-state,
-.locked-state {
+.locked-state,
+.cancelled-state {
   min-height: 47px;
   display: flex;
   align-items: center;
@@ -665,6 +676,13 @@ button {
   border: 1px solid #cce8d8;
   background: #eff9f3;
   color: var(--green);
+}
+
+.cancelled-state {
+  justify-content: center;
+  border: 1px solid #e5dbe2;
+  background: #f8f4f7;
+  color: #786574;
 }
 
 .locked-state {
