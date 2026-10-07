@@ -70,18 +70,15 @@ export default function TestCard({
 
 
   const completed =
-    status ===
-    "COMPLETED";
+    status === "COMPLETED";
 
 
   const inProgress =
-    status ===
-    "IN_PROGRESS";
+    status === "IN_PROGRESS";
 
 
   const cancelled =
-    status ===
-    "CANCELLED";
+    status === "CANCELLED";
 
 
   const notAssigned =
@@ -92,73 +89,38 @@ export default function TestCard({
      SAFE START
   ========================================================= */
 
-  const handleStart =
-    () => {
+  const handleStart = () => {
 
-      /*
-        Jangan pernah mulai test
-        yang sudah dibatalkan.
-      */
-
-      if (
-        cancelled
-      ) {
-
-        return;
-      }
+    if (cancelled) {
+      return;
+    }
 
 
-      /*
-        Completed tidak boleh
-        dikerjakan ulang.
-      */
-
-      if (
-        completed
-      ) {
-
-        return;
-      }
+    if (completed) {
+      return;
+    }
 
 
-      /*
-        Tidak ditugaskan.
-      */
-
-      if (
-        notAssigned
-      ) {
-
-        return;
-      }
+    if (notAssigned) {
+      return;
+    }
 
 
-      /*
-        Hanya NOT_STARTED dan
-        IN_PROGRESS yang boleh masuk.
-      */
-
-      if (
-        status !==
-          "NOT_STARTED" &&
-        status !==
-          "IN_PROGRESS"
-      ) {
-
-        return;
-      }
+    if (
+      status !== "NOT_STARTED" &&
+      status !== "IN_PROGRESS"
+    ) {
+      return;
+    }
 
 
-      if (
-        typeof onStart ===
-        "function"
-      ) {
+    if (
+      typeof onStart === "function"
+    ) {
+      onStart();
+    }
 
-        onStart();
-
-      }
-
-    };
+  };
 
 
   return (
@@ -294,11 +256,7 @@ export default function TestCard({
             />
 
             <span>
-
-              {test?.duration_minutes}
-              {" "}
-              menit
-
+              {test?.duration_minutes} menit
             </span>
 
           </>
@@ -341,10 +299,6 @@ export default function TestCard({
 
           <div className="cancelled-state">
 
-            <Ban
-              size={18}
-            />
-
             <span>
               Tes Dibatalkan
             </span>
@@ -383,9 +337,7 @@ export default function TestCard({
 
             className="premium-start-button"
 
-            onClick={
-              handleStart
-            }
+            onClick={handleStart}
 
           >
 
